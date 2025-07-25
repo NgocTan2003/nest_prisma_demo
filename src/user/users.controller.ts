@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Put } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from 'generated/prisma';
-import { ResponseUpdateUser, UpdateUserDto, UserDto } from './dto/user.dto';
+import { UpdateUserDto } from './dto/user.dto';
 
 
 @Controller('users')
@@ -14,12 +14,12 @@ export class UsersController {
     }
 
     @Get(':id')
-    getById(@Param('id', ParseIntPipe) id: number): Promise<UserDto> {
+    getById(@Param('id', ParseIntPipe) id: number): Promise<any> {
         return this.usersService.getById(id);
     }
 
     @Put(':id')
-    update(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateUserDto): Promise<ResponseUpdateUser> {
+    update(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateUserDto): Promise<any> {
         return this.usersService.update(id, data);
     }
 }

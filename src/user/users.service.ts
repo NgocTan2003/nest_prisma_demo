@@ -2,9 +2,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from 'generated/prisma';
-import { UserDto } from './dto/user.dto';
 import { UpdateUserDto } from './dto/user.dto';
-import { ResponseUpdateUser } from './dto/user.dto';
+import { BadRequestResponse, NotFoundResponse, SuccessResponse } from 'src/common/response';
 
 @Injectable()
 export class UsersService {
@@ -15,31 +14,25 @@ export class UsersService {
         return await this.prismaService.user.findMany();
     }
 
-    async getById(id: number): Promise<UserDto> {
+    async getById(id: number): Promise<any> {
         const user = await this.prismaService.user.findFirst({
             where: { id },
         });
 
         if (!user) {
-            return {
-                message: 'User not found',
-            }
-
+            NotFoundResponse('User not found');
+            return;
         }
-        return {
-            message: 'Get Successfully',
-            user: user,
-        };
+
+        return SuccessResponse(user, 'Get Successfully');
     }
 
-    async update(id: number, data: UpdateUserDto): Promise<ResponseUpdateUser> {
+    async update(id: number, data: UpdateUserDto): Promise<any> {
         const user = await this.prismaService.user.findFirst({
             where: { id },
         });
         if (!user) {
-            return {
-                message: 'User not found',
-            }
+            NotFoundResponse('User not found');
         }
 
         const updatedUser = await this.prismaService.user.update({
@@ -48,13 +41,10 @@ export class UsersService {
         });
 
         if (!updatedUser) {
-            return {
-                message: 'Failed to update user',
-            }
+            BadRequestResponse('Failed to create user');
+
         }
-        return {
-            message: 'Update Successfully',
-        };
+        return SuccessResponse('Updated Successfully');
     }
 
 }

@@ -5,6 +5,8 @@ import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { User } from 'generated/prisma';
 import { compare, hash } from 'bcrypt';
 import { LoginResponse } from './dto/auth.dto';
+import { BadRequestResponse, NotFoundResponse, SuccessResponse } from 'src/common/response';
+import { ISuccessResponse } from 'src/common/interface';
 
 
 @Injectable()
@@ -14,7 +16,7 @@ export class AuthService {
         private jwtService: JwtService
     ) { }
 
-    register = async (data: RegisterDto): Promise<User> => {
+    register = async (data: RegisterDto): Promise<any> => {
         const user = await this.prismaService.user.findUnique({
             where: {
                 email: data.email,
@@ -22,34 +24,39 @@ export class AuthService {
         });
 
         if (user) {
-            throw new HttpException({ message: 'User already exists' }, HttpStatus.BAD_REQUEST);
+            BadRequestResponse('User already exists');
         }
 
         const hashPassword = await hash(data.password, 10);
-
         const res = await this.prismaService.user.create({
             data: { ...data, password: hashPassword }
         });
 
         if (!res) {
-            throw new HttpException({ message: 'Failed to create user' }, HttpStatus.INTERNAL_SERVER_ERROR);
+            BadRequestResponse('Failed to create user');
         }
 
-        return res;
+        return SuccessResponse(res, 'User created successfully');
     }
 
-    login = async (data: LoginDto): Promise<LoginResponse> => {
+    login = async (data: LoginDto): Promise<any> => {
         const user = await this.prismaService.user.findUnique({
             where: {
                 email: data.email,
             }
         });
 
-        if (!user) {
-            throw new HttpException({ message: 'User not found' }, HttpStatus.NOT_FOUND);
+        if (!user || user === null) {
+            NotFoundResponse('User not found');
+            return;
         }
 
-        const verifyPassword = compare(data.password, user.password);
+        const verifyPassword = await compare(data.password, user.password);
+        console.log("verifyPassword ",verifyPassword);
+        if (!verifyPassword) {
+            BadRequestResponse('Invalid password');
+            return;
+        }
         const payload = { id: user.id, email: user.email, name: user.name }
         const accessToken = this.jwtService.sign(payload, {
             secret: process.env.ACCESS_TOKEN_KEY,
