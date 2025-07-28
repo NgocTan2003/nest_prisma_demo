@@ -1,3 +1,6 @@
+import { RoleModule } from './role/role.module';
+import { RoleService } from './role/role.service';
+import { RoleController } from './role/role.controller';
 import { CategoryModule } from './category/category.module';
 import { CategoryService } from './category/category.service';
 import { CategoryController } from './category/category.controller';
@@ -15,13 +18,16 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
-        CategoryModule, 
+    RoleModule,
+    CategoryModule,
     UsersModule, PrismaModule, AuthModule, PostModule,],
   controllers: [
-        CategoryController, 
+    RoleController,
+    CategoryController,
     PostController, AppController],
   providers: [
-        CategoryService, 
+    RoleService,
+    CategoryService,
     PostsService, AppService],
 })
 export class AppModule { }

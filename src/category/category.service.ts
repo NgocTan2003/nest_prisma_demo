@@ -7,79 +7,83 @@ import { BadRequestResponse, SuccessResponse } from 'src/common/response';
 export class CategoryService {
     constructor(private prismaService: PrismaService) { }
 
-
-    getAll = async (): Promise<any> => {
-        return await this.prismaService.category.findMany();
+    async getAll(): Promise<any> {
+        try {
+            return await this.prismaService.category.findMany();
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to get categories');
+        }
     }
 
-    create = async (data: CreateCategoryDto): Promise<any> => {
-        const exist = await this.prismaService.category.findFirst({
-            where: { name: data.name }
-        });
-        
-        if (exist) {
-            BadRequestResponse('Category already exists');
+    async create(data: CreateCategoryDto): Promise<any> {
+        try {
+            const exist = await this.prismaService.category.findFirst({
+                where: { name: data.name }
+            });
+            if (exist) {
+                return BadRequestResponse('Category already exists');
+            }
+            const category = await this.prismaService.category.create({
+                data: { ...data }
+            });
+            if (!category) {
+                return BadRequestResponse('Failed to create category');
+            }
+            return SuccessResponse(category, 'Category created successfully');
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to create category');
         }
-
-        const category = await this.prismaService.category.create({
-            data: { ...data }
-        });
-
-        if (!category) {
-            BadRequestResponse('Failed to create category');
-        }
-
-        return SuccessResponse(category, 'Category created successfully');
     }
 
-    getById = async (id: number): Promise<any> => {
-        const category = await this.prismaService.category.findFirst({
-            where: { id },
-        });
-
-        if (!category) {
-            BadRequestResponse('Category not found');
-            return;
+    async getById(id: number): Promise<any> {
+        try {
+            const category = await this.prismaService.category.findFirst({
+                where: { id },
+            });
+            if (!category) {
+                return BadRequestResponse('Category not found');
+            }
+            return SuccessResponse(category, 'Get Successfully');
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to get category');
         }
-
-        return SuccessResponse(category, 'Get Successfully');
     }
 
-    update = async (id: number, data: UpdateCategoryDto): Promise<any> => {
-        const category = await this.prismaService.category.findFirst({
-            where: { id },
-        });
-
-        if (!category) {
-            BadRequestResponse('Category not found');
+    async update(id: number, data: UpdateCategoryDto): Promise<any> {
+        try {
+            const category = await this.prismaService.category.findFirst({
+                where: { id },
+            });
+            if (!category) {
+                return BadRequestResponse('Category not found');
+            }
+            const updatedCategory = await this.prismaService.category.update({
+                where: { id },
+                data
+            });
+            if (!updatedCategory) {
+                return BadRequestResponse('Failed to update category');
+            }
+            return SuccessResponse(updatedCategory, 'Updated Successfully');
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to update category');
         }
-
-        const updatedCategory = await this.prismaService.category.update({
-            where: { id },
-            data
-        });
-
-        if (!updatedCategory) {
-            BadRequestResponse('Failed to update category');
-        }
-
-        return SuccessResponse(updatedCategory, 'Updated Successfully');
     }
 
-    delete = async (id: number): Promise<any> => {
-        const category = await this.prismaService.category.findFirst({
-            where: { id },
-        });
-
-        if (!category) {
-            BadRequestResponse('Category not found');
+    async delete(id: number): Promise<any> {
+        try {
+            const category = await this.prismaService.category.findFirst({
+                where: { id },
+            });
+            if (!category) {
+                return BadRequestResponse('Category not found');
+            }
+            await this.prismaService.category.delete({
+                where: { id }
+            });
+            return SuccessResponse('Deleted Successfully');
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to delete category');
         }
-
-        await this.prismaService.category.delete({
-            where: { id }
-        });
-
-        return SuccessResponse('Deleted Successfully');
     }
-
 }

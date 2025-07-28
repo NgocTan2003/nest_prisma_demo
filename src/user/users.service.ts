@@ -1,10 +1,11 @@
 
+import * as nodemailer from 'nodemailer';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from 'generated/prisma';
 import { UpdateUserDto } from './dto/user.dto';
 import { BadRequestResponse, NotFoundResponse, SuccessResponse } from 'src/common/response';
-
+ 
 @Injectable()
 export class UsersService {
     constructor(private readonly prismaService: PrismaService) { }
