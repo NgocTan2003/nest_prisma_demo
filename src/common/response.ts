@@ -18,8 +18,8 @@ export function NotFoundResponse(message): HttpException {
     throw new HttpException({ message, status: false }, HttpStatus.NOT_FOUND);
 }
 
-export function UnauthorziredResponse(): HttpException {
-    throw new HttpException({ message: 'Unauthorized', status: false }, HttpStatus.UNAUTHORIZED);
+export function UnauthorziredResponse(message?): HttpException {
+    throw new HttpException({ message: message || 'Unauthorized', status: false }, HttpStatus.UNAUTHORIZED);
 }
 
 export function ForbiddenResponse(message): HttpException {

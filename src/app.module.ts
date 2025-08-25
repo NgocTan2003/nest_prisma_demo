@@ -1,33 +1,41 @@
-import { RoleModule } from './role/role.module';
-import { RoleService } from './role/role.service';
-import { RoleController } from './role/role.controller';
-import { CategoryModule } from './category/category.module';
-import { CategoryService } from './category/category.service';
-import { CategoryController } from './category/category.controller';
-import { UsersModule } from './user/users.module';
-import { UsersService } from './user/users.service';
-import { UsersController } from './user/users.controller';
-import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './auth/auth.module';
-import { PostsService } from './posts/posts.service';
-import { PostModule } from './posts/post.module';
-import { PostController } from './posts/posts.controller';
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { RoleModule } from './role/role.module';
+import { CategoryModule } from './category/category.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UsersModule } from './user/users.module';
+import { AuthModule } from './auth/auth.module';
+import { PostModule } from './posts/post.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }), 
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) => ({
+        type: 'postgres',
+        host: cfg.get('DB_HOSTNAME', 'localhost'),
+        port: parseInt(cfg.get('DB_PORT', '5432'), 10),
+        username: cfg.get('DB_USERNAME', 'postgres'),
+        password: cfg.get('DB_PASSWORD', 'postgres'), 
+        database: cfg.get('DATABASE_NAME', 'nest_typeorm_auth'),
+        autoLoadEntities: true,
+        synchronize: false,
+      }),
+    }),
     RoleModule,
     CategoryModule,
-    UsersModule, PrismaModule, AuthModule, PostModule,],
+    UsersModule,
+    AuthModule,
+    PostModule,
+  ],
   controllers: [
-    RoleController,
-    CategoryController,
-    PostController, AppController],
+    AppController,
+  ],
   providers: [
-    RoleService,
-    CategoryService,
-    PostsService, AppService],
+    AppService,
+  ],
 })
 export class AppModule { }

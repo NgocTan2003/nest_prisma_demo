@@ -1,16 +1,18 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Put, Query, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { User } from 'generated/prisma';
 import { UpdateUserDto } from './dto/user.dto';
-
+import { PageNumberDto, UserFilterDto, UserListQueryDto } from 'src/common/pagination/dto/page-query.dto';
+import { User } from './entities/user.entity';
 
 @Controller('users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
     @Get()
-    getAll(): Promise<User[]> {
-        return this.usersService.getAll();
+    getAll(
+        @Query() query: UserListQueryDto
+    ): Promise<User[]> {
+        return this.usersService.getAll(query);
     }
 
     @Get(':id')

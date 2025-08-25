@@ -1,15 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { BadRequestResponse, SuccessResponse } from 'src/common/response';
+import { Category } from './entities/category.entity';
 
 @Injectable()
 export class CategoryService {
-    constructor(private prismaService: PrismaService) { }
+    constructor(
+        @InjectRepository(Category)
+        private readonly categoryRepository: Repository<Category>,
+    ) { }
 
     async getAll(): Promise<any> {
         try {
-            return await this.prismaService.category.findMany();
+            const categories = await this.categoryRepository.find();
+            return SuccessResponse(categories, 'Categories retrieved successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to get categories');
         }
@@ -17,18 +23,12 @@ export class CategoryService {
 
     async create(data: CreateCategoryDto): Promise<any> {
         try {
-            const exist = await this.prismaService.category.findFirst({
-                where: { name: data.name }
-            });
+            const exist = await this.categoryRepository.findOne({ where: { name: data.name } });
             if (exist) {
                 return BadRequestResponse('Category already exists');
             }
-            const category = await this.prismaService.category.create({
-                data: { ...data }
-            });
-            if (!category) {
-                return BadRequestResponse('Failed to create category');
-            }
+            const category = this.categoryRepository.create(data);
+            await this.categoryRepository.save(category);
             return SuccessResponse(category, 'Category created successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to create category');
@@ -37,13 +37,11 @@ export class CategoryService {
 
     async getById(id: number): Promise<any> {
         try {
-            const category = await this.prismaService.category.findFirst({
-                where: { id },
-            });
+            const category = await this.categoryRepository.findOne({ where: { id } });
             if (!category) {
                 return BadRequestResponse('Category not found');
             }
-            return SuccessResponse(category, 'Get Successfully');
+            return SuccessResponse(category, 'Category retrieved successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to get category');
         }
@@ -51,20 +49,16 @@ export class CategoryService {
 
     async update(id: number, data: UpdateCategoryDto): Promise<any> {
         try {
-            const category = await this.prismaService.category.findFirst({
-                where: { id },
-            });
+            const category = await this.categoryRepository.findOne({ where: { id } });
             if (!category) {
                 return BadRequestResponse('Category not found');
             }
-            const updatedCategory = await this.prismaService.category.update({
-                where: { id },
-                data
-            });
+            await this.categoryRepository.update(id, data);
+            const updatedCategory = await this.categoryRepository.findOne({ where: { id } });
             if (!updatedCategory) {
                 return BadRequestResponse('Failed to update category');
             }
-            return SuccessResponse(updatedCategory, 'Updated Successfully');
+            return SuccessResponse(updatedCategory, 'Category updated successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to update category');
         }
@@ -72,18 +66,19 @@ export class CategoryService {
 
     async delete(id: number): Promise<any> {
         try {
-            const category = await this.prismaService.category.findFirst({
-                where: { id },
-            });
+            const category = await this.categoryRepository.findOne({ where: { id } });
             if (!category) {
                 return BadRequestResponse('Category not found');
             }
-            await this.prismaService.category.delete({
-                where: { id }
-            });
-            return SuccessResponse('Deleted Successfully');
+            await this.categoryRepository.delete(id);
+            return SuccessResponse('Category deleted successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to delete category');
         }
+    }
+
+    async findOneById(id: number): Promise<Category | undefined> {
+        const category = await this.categoryRepository.findOne({ where: { id } });
+        return category || undefined;
     }
 }

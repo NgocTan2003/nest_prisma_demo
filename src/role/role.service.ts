@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BadRequestResponse, NotFoundResponse, SuccessResponse } from '../common/response';
+import { Role } from './entities/role.entity';
 
 @Injectable()
 export class RoleService {
-    constructor(private readonly prismaService: PrismaService) { }
+    constructor(
+        @InjectRepository(Role)
+        private readonly roleRepository: Repository<Role>,
+    ) { }
 
     async create(data: { name: string }): Promise<any> {
         try {
-            const role = await this.prismaService.role.create({
-                data: {
-                    name: data.name,
-                },
-            });
+            const role = this.roleRepository.create({ name: data.name });
+            await this.roleRepository.save(role);
             return SuccessResponse(role, 'Role created successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to create role');
@@ -20,12 +22,16 @@ export class RoleService {
     }
 
     async update(id: number, data: { name: string }): Promise<any> {
-        const role = await this.prismaService.role.findUnique({ where: { id } });
+        const role = await this.roleRepository.findOne({ where: { id } });
         if (!role) {
             return NotFoundResponse('Role not found');
         }
         try {
-            const updated = await this.prismaService.role.update({ where: { id }, data });
+            await this.roleRepository.update(id, data);
+            const updated = await this.roleRepository.findOne({ where: { id } });
+            if (!updated) {
+                return BadRequestResponse('Failed to update role');
+            }
             return SuccessResponse(updated, 'Role updated successfully');
         } catch (error) {
             return BadRequestResponse('Failed to update role');
@@ -33,15 +39,20 @@ export class RoleService {
     }
 
     async delete(id: number): Promise<any> {
-        const role = await this.prismaService.role.findUnique({ where: { id } });
+        const role = await this.roleRepository.findOne({ where: { id } });
         if (!role) {
             return NotFoundResponse('Role not found');
         }
         try {
-            await this.prismaService.role.delete({ where: { id } });
+            await this.roleRepository.delete(id);
             return SuccessResponse('Role deleted successfully');
         } catch (error) {
             return BadRequestResponse('Failed to delete role');
         }
+    }
+
+    async findRoleById(id: number): Promise<Role | undefined> {
+        const role = await this.roleRepository.findOne({ where: { id } });
+        return role || undefined;
     }
 }

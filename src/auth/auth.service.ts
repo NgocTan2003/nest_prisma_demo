@@ -1,37 +1,42 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { compare, hash } from 'bcrypt';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { BadRequestResponse, NotFoundResponse, SuccessResponse } from 'src/common/response';
+import { UserRoles } from 'src/util/role';
+import { RefreshTokenDto } from './dto/auth.dto';
+import { UsersService } from 'src/user/users.service';
+import { RoleService } from 'src/role/role.service';
 import * as nodemailer from 'nodemailer';
-
 
 @Injectable()
 export class AuthService {
     constructor(
-        private prismaService: PrismaService,
-        private jwtService: JwtService
+        private readonly usersService: UsersService,
+        private readonly rolesService: RoleService,
+        private readonly jwtService: JwtService,
     ) { }
 
     async register(data: RegisterDto): Promise<any> {
         try {
-            const user = await this.prismaService.user.findUnique({
-                where: {
-                    email: data.email,
-                }
-            });
+            const user = await this.usersService.findOneByEmail(data.email);
             if (user) {
                 return BadRequestResponse('User already exists');
             }
+
             const hashPassword = await hash(data.password, 10);
-            const res = await this.prismaService.user.create({
-                data: { ...data, password: hashPassword, roleId: 2 }
-            });
-            if (!res) {
-                return BadRequestResponse('Failed to create user');
+            const role = await this.rolesService.findRoleById(Number(UserRoles.USER));
+            if (!role) {
+                return BadRequestResponse('Role not found');
             }
-            const payload = { email: data.email, sub: res.id };
+
+            const newUser = await this.usersService.createUser({
+                ...data,
+                password: hashPassword,
+                role,
+            });
+
+            const payload = { email: data.email, id: newUser.id };
             const token = this.jwtService.sign(payload, {
                 secret: process.env.MAIL_SECRETKEY,
                 expiresIn: '15m',
@@ -39,27 +44,55 @@ export class AuthService {
 
             await this.sendVerificationEmail(data.email, token);
 
-            return SuccessResponse(res, 'User created successfully');
+            return SuccessResponse('User created successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Failed to register');
         }
     }
 
+    async registerAdmin(data: RegisterDto): Promise<any> {
+        try {
+            const user = await this.usersService.findOneByEmail(data.email);
+            if (user) {
+                return BadRequestResponse('User already exists');
+            }
+
+            const hashPassword = await hash(data.password, 10);
+            const role = await this.rolesService.findRoleById(Number(UserRoles.ADMIN));
+            if (!role) {
+                return BadRequestResponse('Role not found');
+            }
+
+            const newUser = await this.usersService.createUser({
+                ...data,
+                password: hashPassword,
+                role,
+            });
+
+            const payload = { email: data.email, id: newUser.id };
+            const token = this.jwtService.sign(payload, {
+                secret: process.env.MAIL_SECRETKEY,
+                expiresIn: '15m',
+            });
+            await this.sendVerificationEmail(data.email, token);
+
+            return SuccessResponse('Admin created successfully');
+        } catch (error) {
+            return BadRequestResponse(error.message || 'Failed to register admin');
+        }
+    }
+
     async login(data: LoginDto): Promise<any> {
         try {
-            const user = await this.prismaService.user.findUnique({
-                where: {
-                    email: data.email,
-                }
-            });
-            if (!user || user === null) {
+            const user = await this.usersService.findOneByEmail(data.email);
+            if (!user) {
                 return NotFoundResponse('User not found');
             }
             const verifyPassword = await compare(data.password, user.password);
             if (!verifyPassword) {
                 return BadRequestResponse('Invalid password');
             }
-            const payload = { id: user.id, email: user.email, name: user.name }
+            const payload = { id: user.id, email: user.email, name: user.name, role: user.role };
             const accessToken = this.jwtService.sign(payload, {
                 secret: process.env.ACCESS_TOKEN_KEY,
                 expiresIn: '1h',
@@ -74,14 +107,12 @@ export class AuthService {
         }
     }
 
-    async refreshToken(refreshToken: string): Promise<any> {
+    async refreshToken(data: RefreshTokenDto): Promise<any> {
         try {
-            const payload = this.jwtService.verify(refreshToken, {
+            const payload = this.jwtService.verify(data.refreshToken, {
                 secret: process.env.REFRESH_TOKEN_KEY,
             });
-            const user = await this.prismaService.user.findUnique({
-                where: { id: payload.id },
-            });
+            const user = await this.usersService.findOneById(payload.id);
             if (!user) {
                 return NotFoundResponse('User not found');
             }
@@ -145,19 +176,14 @@ export class AuthService {
             const payload = this.jwtService.verify(token, {
                 secret: process.env.MAIL_SECRETKEY,
             });
-            const user = await this.prismaService.user.findUnique({
-                where: { id: payload.sub },
-            });
+            const user = await this.usersService.findOneById(payload.sub);
             if (!user) {
                 return NotFoundResponse('User not found');
             }
             if (user.isVerified) {
                 return BadRequestResponse('Email already verified');
             }
-            await this.prismaService.user.update({
-                where: { id: user.id },
-                data: { isVerified: true },
-            });
+            await this.usersService.updateUser(user.id, { isVerified: true });
             return SuccessResponse('Email verified successfully');
         } catch (error) {
             return BadRequestResponse(error.message || 'Invalid or expired token');
